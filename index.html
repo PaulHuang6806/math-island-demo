@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#58cc02">
+<title>数学游戏盒 · 闯关demo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; }
+  body {
+    font-family: "PingFang SC","Microsoft YaHei","Nunito",system-ui,sans-serif;
+    background:#fdf9f0; color:#4b4b4b;
+    display:flex; justify-content:center;
+  }
+  #app { width:100%; max-width:480px; min-height:100vh; position:relative; background:#fdf9f0; box-shadow:0 0 24px rgba(0,0,0,.08); }
+  .hidden { display:none !important; }
+  .screen { min-height:100vh; display:flex; flex-direction:column; }
+
+  /* ---------- 通用按钮（多邻国 3D 按压感） ---------- */
+  .btn {
+    border:none; border-radius:14px; font-size:17px; font-weight:800;
+    padding:13px 22px; cursor:pointer; letter-spacing:1px;
+    color:#fff; background:#58cc02; box-shadow:0 4px 0 #46a302;
+    transition:transform .06s, box-shadow .06s; font-family:inherit;
+  }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #46a302; }
+  .btn.gray { background:#e5e5e5; color:#777; box-shadow:0 4px 0 #c9c9c9; }
+  .btn.gray:active { box-shadow:0 1px 0 #c9c9c9; }
+  .btn.blue { background:#1cb0f6; box-shadow:0 4px 0 #1899d6; }
+  .btn.blue:active { box-shadow:0 1px 0 #1899d6; }
+
+  /* ---------- 顶栏 ---------- */
+  header {
+    position:sticky; top:0; z-index:10; background:#fff;
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px; box-shadow:0 2px 6px rgba(0,0,0,.06);
+  }
+  .thumb-badge { font-size:26px; filter:grayscale(1); opacity:.4; }
+  .thumb-badge.silver { filter:grayscale(.6) sepia(.3); opacity:.9; }
+  .thumb-badge.gold { filter:none; opacity:1; }
+  .xp-wrap { flex:1; display:flex; align-items:center; gap:8px; }
+  .xp-bar { flex:1; height:12px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
+  .xp-bar > div { height:100%; width:0%; background:linear-gradient(90deg,#ffc800,#ff9600); border-radius:8px; transition:width .5s; }
+  #hdr-xp-text { font-size:12px; font-weight:800; color:#ff9600; white-space:nowrap; }
+  .hdr-btn { border:none; background:#fff; border:2px solid #e5e5e5; border-radius:12px; padding:7px 12px; font-weight:800; color:#1cb0f6; font-size:14px; cursor:pointer; font-family:inherit; }
+  .hdr-title { font-size:18px; font-weight:900; color:#4b4b4b; flex:1; text-align:center; }
+  #btn-quit, #btn-back-map { border:none; background:none; font-size:20px; color:#afafaf; cursor:pointer; font-weight:900; }
+
+  /* ---------- 地图 ---------- */
+  .map-title { text-align:center; padding:18px 0 6px; font-weight:900; font-size:20px; color:#3c3c3c; }
+  .map-sub { text-align:center; font-size:12px; color:#afafaf; margin-bottom:14px; }
+  #path { display:flex; flex-direction:column; align-items:center; gap:28px; padding:56px 0 40px; }
+  .node-wrap { position:relative; }
+  .node {
+    width:78px; height:78px; border-radius:50%; border:none; cursor:pointer;
+    font-size:32px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 rgba(0,0,0,.18); transition:transform .1s;
+    position:relative; font-family:inherit;
+  }
+  .node:active { transform:scale(.94); }
+  .node.green { background:#58cc02; } .node.blue { background:#1cb0f6; }
+  .node.brown { background:#b08968; } .node.purple { background:#ce82ff; }
+  .node.locked { background:#e5e5e5; box-shadow:0 6px 0 #cfcfcf; cursor:default; }
+  .node.current { animation:pulse 1.6s infinite; }
+  @keyframes pulse {
+    0% { box-shadow:0 6px 0 rgba(0,0,0,.18), 0 0 0 0 rgba(88,204,2,.45); }
+    70% { box-shadow:0 6px 0 rgba(0,0,0,.18), 0 0 0 16px rgba(88,204,2,0); }
+    100% { box-shadow:0 6px 0 rgba(0,0,0,.18), 0 0 0 0 rgba(88,204,2,0); }
+  }
+  .node-stars { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:4px; font-size:13px; letter-spacing:2px; white-space:nowrap; }
+  .node-name { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:22px; font-size:12px; font-weight:800; color:#8a8a8a; white-space:nowrap; }
+  .start-bubble {
+    position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%);
+    background:#58cc02; color:#fff; font-weight:900; font-size:14px;
+    padding:7px 16px; border-radius:12px; white-space:nowrap;
+    animation:bob 1s infinite alternate;
+  }
+  .start-bubble:after {
+    content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    border:7px solid transparent; border-top-color:#58cc02;
+  }
+  @keyframes bob { from { margin-bottom:0; } to { margin-bottom:7px; } }
+  footer { text-align:center; font-size:11px; color:#c5c5c5; padding:10px 16px 26px; }
+
+  /* ---------- 游戏页 ---------- */
+  .game-hdr { display:flex; align-items:center; gap:12px; }
+  .prog { flex:1; height:14px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
+  .prog > div { height:100%; width:0%; background:#58cc02; border-radius:8px; transition:width .4s; }
+  .combo { font-weight:900; color:#ff9600; font-size:15px; white-space:nowrap; }
+  #game-body { flex:1; display:flex; flex-direction:column; align-items:center; padding:22px 18px 110px; gap:20px; }
+  .q-title { font-size:20px; font-weight:900; color:#3c3c3c; text-align:center; }
+  .q-sub { font-size:14px; color:#9a9a9a; font-weight:700; text-align:center; }
+
+  .duo-cards { display:flex; gap:18px; justify-content:center; }
+  .duo-card {
+    background:#fff; border:2px solid #e5e5e5; border-radius:18px;
+    padding:14px 12px; min-width:130px; min-height:130px; cursor:pointer;
+    display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:4px;
+    font-size:26px; box-shadow:0 3px 0 #e0e0e0; transition:transform .1s;
+  }
+  .duo-card:active { transform:scale(.96); }
+  .duo-card.shake { animation:shake .4s; border-color:#ff9600; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-7px)} 75%{transform:translateX(7px)} }
+  .duo-card.pop { animation:pop .4s; border-color:#58cc02; background:#f2ffe8; }
+  @keyframes pop { 50% { transform:scale(1.08); } }
+
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:340px; }
+  .opt {
+    border:none; border-radius:14px; background:#fff; border:2px solid #e5e5e5;
+    box-shadow:0 3px 0 #e0e0e0; padding:14px 8px; font-size:20px; font-weight:900;
+    color:#4b4b4b; cursor:pointer; font-family:inherit; transition:transform .1s;
+  }
+  .opt:active { transform:scale(.96); }
+  .opt.dead { opacity:.35; pointer-events:none; }
+  .opt.good { background:#f2ffe8; border-color:#58cc02; color:#58cc02; }
+
+  .mcard {
+    width:64px; height:84px; border-radius:12px; background:#58cc02; color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    box-shadow:0 4px 0 #46a302; font-weight:900; font-size:24px;
+  }
+  .mcard .dots { display:flex; flex-wrap:wrap; gap:2px; max-width:52px; justify-content:center; }
+  .mcard .dots i { width:7px; height:7px; border-radius:50%; background:#fff; opacity:.9; }
+  .mcard.click { cursor:pointer; }
+  .mcard.good { background:#f2ffe8; color:#58cc02; box-shadow:0 4px 0 #cfe8b8; }
+  .mcard.shake { animation:shake .4s; }
+  .mrow { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+
+  .clock { width:210px; height:210px; }
+
+  /* ---------- 反馈条 ---------- */
+  #feedback {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:480px; padding:16px 20px 26px; z-index:20;
+    font-size:18px; font-weight:900; display:none;
+  }
+  #feedback.ok { display:block; background:#d7ffb8; color:#58a700; }
+  #feedback.no { display:block; background:#ffd9b8; color:#cd7900; }
+
+  /* ---------- 结算 ---------- */
+  #screen-result { justify-content:center; align-items:center; padding:24px; }
+  .result-card {
+    background:#fff; border-radius:24px; padding:30px 26px; width:100%; max-width:360px;
+    text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.1); display:flex; flex-direction:column; gap:14px;
+  }
+  .r-title { font-size:24px; font-weight:900; color:#3c3c3c; }
+  .r-stars { font-size:44px; letter-spacing:6px; }
+  .r-stars span { display:inline-block; animation:starin .5s backwards; }
+  .r-stars span:nth-child(2){ animation-delay:.2s; } .r-stars span:nth-child(3){ animation-delay:.4s; }
+  @keyframes starin { from { transform:scale(0) rotate(-90deg); opacity:0; } }
+  .r-line { font-size:15px; font-weight:800; color:#8a8a8a; }
+  .r-xp { font-size:18px; font-weight:900; color:#ff9600; }
+  .r-btns { display:flex; gap:12px; justify-content:center; margin-top:6px; }
+
+  /* ---------- 评价手册 ---------- */
+  #report-body { padding:18px 16px 40px; display:flex; flex-direction:column; gap:14px; }
+  .rep-card { background:#fff; border-radius:18px; padding:16px; box-shadow:0 3px 10px rgba(0,0,0,.06); }
+  .rep-h { font-weight:900; font-size:16px; margin-bottom:8px; color:#3c3c3c; }
+  .rep-line { font-size:14px; font-weight:700; color:#777; line-height:1.8; }
+  .rep-wrong { color:#cd7900; }
+  .rep-tip { color:#58a700; }
+  #toast {
+    position:fixed; top:70px; left:50%; transform:translateX(-50%);
+    background:#4b4b4b; color:#fff; font-weight:800; font-size:14px;
+    padding:10px 18px; border-radius:20px; z-index:50; display:none;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 地图 -->
+  <div id="screen-map" class="screen">
+    <header>
+      <span id="hdr-thumb" class="thumb-badge">👍</span>
+      <div class="xp-wrap">
+        <div class="xp-bar"><div id="hdr-xp-fill"></div></div>
+        <span id="hdr-xp-text"></span>
+      </div>
+      <button id="btn-voice" class="hdr-btn">🔊</button>
+      <button id="btn-report" class="hdr-btn">📔 评价手册</button>
+    </header>
+    <div class="map-title">数学游戏盒 · 闯关地图</div>
+    <div class="map-sub">改编自朱瑶《幼小衔接数学游戏盒》 · 多邻国式闯关demo</div>
+    <div id="path"></div>
+    <footer>玩中长智慧 · 玩中共成长</footer>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="screen-game" class="screen hidden">
+    <header class="game-hdr">
+      <button id="btn-quit">✕</button>
+      <div class="prog"><div id="game-prog-fill"></div></div>
+      <div id="combo-badge" class="combo hidden"></div>
+    </header>
+    <div id="game-body"></div>
+  </div>
+
+  <!-- 结算 -->
+  <div id="screen-result" class="screen hidden">
+    <div id="result-body" class="result-card"></div>
+  </div>
+
+  <!-- 评价手册 -->
+  <div id="screen-report" class="screen hidden">
+    <header>
+      <button id="btn-back-map">←</button>
+      <div class="hdr-title">📔 评价手册</div>
+    </header>
+    <div id="report-body"></div>
+  </div>
+
+  <div id="feedback"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+"use strict";
+/* ================= 数据 ================= */
+const NODES = [
+  { id:'bisize',  island:'green', icon:'⚖️', name:'比大小',        page:'P.15', game:'bisize'  },
+  { id:'friends', island:'green', icon:'🤝', name:'朋友圈·凑10',   page:'P.16', game:'friends' },
+  { id:'jielong', island:'green', icon:'🔢', name:'数字接龙',      page:'P.6',  game:'jielong' },
+  { id:'clock',   island:'brown', icon:'🕐', name:'看时钟',        page:'P.28', game:'clock'   },
+  { id:'coushu',  island:'green', icon:'➕', name:'凑数游戏',      page:'P.59', game:'coushu'  },
+  { id:'missing', island:'blue',  icon:'🔍', name:'哪张牌不见了',  page:'P.52', game:'missing' },
+  { id:'yapai',   island:'green', icon:'🃏', name:'压牌游戏',      page:'P.56', game:'yapai'   },
+  { id:'lock2',   island:'brown', icon:'🐺', name:'老狼几点钟',    page:'P.30', locked:true },
+  { id:'lock3',   island:'blue',  icon:'🧩', name:'接一接·找规律', page:'P.25', locked:true },
+];
+const TIPS = {
+  bisize:  '建议和孩子玩实体牌「比大小」，翻牌比数字，大的赢（评价手册 P.15）',
+  friends: '建议和孩子玩实体牌「朋友圈」，凑10找朋友（评价手册 P.16）',
+  clock:   '建议和孩子一起拨实物时钟、玩「老狼老狼几点钟」（评价手册 P.28/30）',
+  missing: '建议和孩子玩实体牌「哪张牌不见了」，从5张开始（评价手册 P.52）',
+  jielong: '建议和孩子玩实体牌「来接龙」，按数序从小到大或从大到小排（评价手册 P.6/46/47）',
+  coushu:  '建议和孩子玩实体牌「凑数游戏」，先凑10再凑20（评价手册 P.59）',
+  yapai:   '建议和孩子玩实体牌「压牌游戏」，体验输赢、学会表达情绪（评价手册 P.56/57）',
+};
+const KEY = 'mathbox_demo_v1';
+let S = null;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e) {}
+if (!S || typeof S !== 'object') S = { stars:{}, xp:0, wrong:{} };
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+
+/* ================= 音效 ================= */
+let AC = null;
+function ac(){
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, t0, dur, type, vol){
+  const c = ac(); if (!c) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || .22, c.currentTime + t0);
+  g.gain.exponentialRampToValueAtTime(.001, c.currentTime + t0 + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + dur + .05);
+}
+const SFX = {
+  click:  () => tone(600, 0, .08, 'triangle'),
+  correct:() => { tone(660,0,.12); tone(880,.12,.22); },
+  wrong:  () => tone(196, 0, .25, 'square', .12),
+  win:    () => [523,659,784,1047].forEach((f,i)=>tone(f, i*.12, .28)),
+};
+
+/* ================= 语音朗读（孩子识字少，全程语音） ================= */
+let VOICE_ON = localStorage.getItem('mathbox_voice') !== 'off';
+function speak(text){
+  if (!VOICE_ON || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN'; u.rate = .95;
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+function refreshVoiceBtn(){ $('btn-voice').textContent = VOICE_ON ? '🔊' : '🔇'; }
+
+/* ================= 工具 ================= */
+const $ = id => document.getElementById(id);
+const ri = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function showScreen(id){
+  ['map','game','result','report'].forEach(s => $('screen-'+s).classList.toggle('hidden', s!==id));
+  window.scrollTo(0,0);
+}
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(()=>t.style.display='none', 1600);
+}
+let fbTimer = null;
+function feedback(ok, msg){
+  const f = $('feedback');
+  f.className = ok ? 'ok' : 'no';
+  f.textContent = msg || (ok ? '答对啦！' : '再试一次～');
+  speak(ok ? '答对啦' : '再试一次');
+  clearTimeout(fbTimer);
+  fbTimer = setTimeout(()=>{ f.className=''; }, 1000);
+}
+
+/* ================= 游戏框架 ================= */
+let G = null;
+function startGame(node){
+  SFX.click();
+  G = { node, round:0, total:5, mistakes:0, combo:0, maxCombo:0, done:false, next:null };
+  showScreen('game');
+  $('game-prog-fill').style.width = '0%';
+  $('combo-badge').classList.add('hidden');
+  G.next = GAMES[node.game];
+  speak(node.name + '，开始！');
+  G.next();
+}
+function updateProg(){ $('game-prog-fill').style.width = (G.round / G.total * 100) + '%'; }
+function updateCombo(){
+  const b = $('combo-badge');
+  if (G.combo >= 2) { b.textContent = '🔥连击 x' + G.combo; b.classList.remove('hidden'); }
+  else b.classList.add('hidden');
+}
+function recordWrong(info){
+  const arr = S.wrong[G.node.id] || (S.wrong[G.node.id] = []);
+  arr.push(info); if (arr.length > 10) arr.shift();
+  save();
+}
+function onAnswer(correct, wrongInfo){
+  if (!G || G.done) return;
+  if (correct) {
+    G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo);
+    SFX.correct(); feedback(true, '答对啦！' + (G.combo>=2 ? ' 🔥x'+G.combo : ''));
+    updateCombo();
+    G.round++; updateProg();
+    if (G.round >= G.total) { G.done = true; setTimeout(finish, 700); }
+    else setTimeout(()=>{ if (G && !G.done) G.next(); }, 800);
+  } else {
+    G.mistakes++; G.combo = 0; updateCombo();
+    SFX.wrong(); feedback(false);
+    if (wrongInfo) recordWrong(wrongInfo);
+  }
+}
+function finish(){
+  const n = G.node;
+  const stars = G.mistakes === 0 ? 3 : G.mistakes === 1 ? 2 : 1;
+  S.stars[n.id] = Math.max(S.stars[n.id] || 0, stars);
+  const xp = 10 + (G.mistakes === 0 ? 5 : 0) + G.maxCombo;
+  S.xp += xp;
+  save();
+  SFX.win();
+  const starHtml = '★★★'.slice(0,0) +
+    [0,1,2].map(i => '<span style="color:' + (i < stars ? '#ffc800' : '#e5e5e5') + '">★</span>').join('');
+  $('result-body').innerHTML =
+    '<div class="r-title">🎉 过关！</div>' +
+    '<div class="r-stars">' + starHtml + '</div>' +
+    '<div class="r-line">' + n.icon + ' ' + n.name + ' · 评价手册 ' + n.page + '</div>' +
+    '<div class="r-xp">经验 +' + xp + '　·　最高连击 x' + G.maxCombo + '</div>' +
+    '<div class="r-line">' + (G.mistakes === 0 ? '零失误，太棒了！' : '失误 ' + G.mistakes + ' 次，再玩一次冲3星吧') + '</div>' +
+    '<div class="r-btns">' +
+      '<button class="btn gray" id="btn-replay">再玩一次</button>' +
+      '<button class="btn" id="btn-tomap">回地图</button>' +
+    '</div>';
+  showScreen('result');
+  $('btn-replay').onclick = () => startGame(n);
+  $('btn-tomap').onclick = () => { SFX.click(); renderMap(); showScreen('map'); };
+}
+
+/* ================= 四个关卡 ================= */
+const GAMES = {
+  /* --- 比大小：点数多的一边赢 --- */
+  bisize(){
+    const a = ri(1,9); let b = ri(1,9); if (b === a) b = a % 9 + 1;
+    const fruit = ['🍎','🍌','🍇','🍓'][ri(0,3)];
+    const side = x => Array.from({length:x}, ()=>fruit).join('');
+    speak('哪边的水果多？点一点！');
+    $('game-body').innerHTML =
+      '<div class="q-title">哪边的水果多？点一点！</div>' +
+      '<div class="q-sub">第 ' + (G.round+1) + ' / ' + G.total + ' 题 · 评价手册 P.15</div>' +
+      '<div class="duo-cards">' +
+        '<div class="duo-card" id="cardL">' + side(a) + '</div>' +
+        '<div class="duo-card" id="cardR">' + side(b) + '</div>' +
+      '</div>';
+    const tap = (el, val) => {
+      el.onclick = () => {
+        if (val > Math.min(a,b) && val === Math.max(a,b)) {
+          el.classList.add('pop');
+          onAnswer(true);
+        } else {
+          el.classList.add('shake');
+          setTimeout(()=>el.classList.remove('shake'), 450);
+          onAnswer(false, '比大小：' + a + ' 和 ' + b + '，较多的是 ' + Math.max(a,b));
+        }
+      };
+    };
+    tap($('cardL'), a); tap($('cardR'), b);
+  },
+
+  /* --- 朋友圈·凑10 --- */
+  friends(){
+    const a = ri(1,9), b = 10 - a;
+    const dummies = shuffle([1,2,3,4,5,6,7,8,9].filter(x => x !== b)).slice(0,3);
+    const opts = shuffle([b, ...dummies]);
+    speak('我有' + a + '个苹果，再拿几个就凑成10？');
+    $('game-body').innerHTML =
+      '<div class="q-title">我有 ' + a + ' 个🍎</div>' +
+      '<div class="q-sub">再拿几个就凑成 10？（朋友圈·幸运数字10）</div>' +
+      '<div class="opts">' + opts.map(v => '<button class="opt" data-v="'+v+'">'+v+'</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const v = +btn.dataset.v;
+        if (v === b) { btn.classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, '凑10：' + a + ' + ? = 10（答案是 ' + b + '）'); }
+      };
+    });
+  },
+
+  /* --- 看时钟 --- */
+  clock(){
+    const h = ri(1,12);
+    const opts = shuffle([h, ...shuffle([1,2,3,4,5,6,7,8,9,10,11,12].filter(x=>x!==h)).slice(0,3)]);
+    speak('现在是几点？');
+    $('game-body').innerHTML =
+      '<div class="q-title">现在是几点？</div>' +
+      '<div class="q-sub">短针是时针，长针是分针 · 评价手册 P.28</div>' +
+      clockSVG(h) +
+      '<div class="opts">' + opts.map(v => '<button class="opt" data-v="'+v+'">'+v+':00</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const v = +btn.dataset.v;
+        if (v === h) { btn.classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, '看时钟：钟面是 ' + h + ' 点'); }
+      };
+    });
+  },
+
+  /* --- 哪张牌不见了 --- */
+  missing(){
+    const start = ri(1,15);
+    const seq = [start, start+1, start+2, start+3, start+4];
+    const gone = seq[ri(0,4)];
+    const cardHtml = n =>
+      '<div class="mcard"><span>' + n + '</span><span class="dots">' +
+      Array.from({length:n}, ()=>'<i></i>').join('') + '</span></div>';
+    $('game-body').innerHTML =
+      '<div class="q-title">记住这5张牌！</div>' +
+      '<div class="q-sub">等下有一张会不见 · 评价手册 P.52</div>' +
+      '<div class="mrow">' + seq.map(cardHtml).join('') + '</div>' +
+      '<button class="btn blue" id="btn-mem">记住啦！</button>';
+    speak('记住这5张牌！');
+    $('btn-mem').onclick = () => {
+      SFX.click();
+      speak('哪张牌不见了？');
+      const remain = shuffle(seq.filter(x => x !== gone));
+      $('game-body').innerHTML =
+        '<div class="q-title">哪张牌不见了？</div>' +
+        '<div class="q-sub">剩下的4张在这里</div>' +
+        '<div class="mrow">' + remain.map(cardHtml).join('') + '</div>' +
+        '<div class="opts">' + shuffle(seq).map(v => '<button class="opt" data-v="'+v+'">'+v+'</button>').join('') + '</div>';
+      document.querySelectorAll('.opt').forEach(btn => {
+        btn.onclick = () => {
+          const v = +btn.dataset.v;
+          if (v === gone) { btn.classList.add('good'); onAnswer(true); }
+          else { btn.classList.add('dead'); onAnswer(false, '哪张牌不见了：数列 ' + seq[0] + '-' + seq[4] + '，不见的是 ' + gone); }
+        };
+      });
+    };
+  },
+  /* --- 数字接龙：按方向依次点牌 --- */
+  jielong(){
+    const s = ri(1,16);
+    const seq = [s, s+1, s+2, s+3];
+    const asc = Math.random() < .5;
+    const order = asc ? seq.slice() : seq.slice().reverse();
+    const shown = shuffle(seq);
+    G.jl = { order, idx:0 };
+    speak(asc ? '从小到大，按顺序点牌！' : '从大到小，按顺序点牌！');
+    $('game-body').innerHTML =
+      '<div class="q-title">' + (asc ? '从小到大' : '从大到小') + '，按顺序点牌！</div>' +
+      '<div class="q-sub">第 ' + (G.round+1) + ' / ' + G.total + ' 题 · 评价手册 P.6</div>' +
+      '<div class="mrow">' + shown.map(v => '<div class="mcard click" data-v="'+v+'"><span>'+v+'</span><span class="dots">'+Array.from({length:v},()=>'<i></i>').join('')+'</span></div>').join('') + '</div>';
+    document.querySelectorAll('.mcard.click').forEach(c => {
+      c.onclick = () => {
+        const v = +c.dataset.v;
+        if (v === G.jl.order[G.jl.idx]) {
+          c.classList.add('good'); c.classList.remove('click'); c.onclick = null;
+          G.jl.idx++;
+          if (G.jl.idx >= 4) onAnswer(true);
+          else { SFX.click(); }
+        } else {
+          c.classList.add('shake');
+          setTimeout(()=>c.classList.remove('shake'), 450);
+          onAnswer(false, '接龙：' + seq.join(',') + '，本轮方向' + (asc ? '从小到大' : '从大到小'));
+        }
+      };
+    });
+  },
+
+  /* --- 凑数游戏：加到20 / 减到20 --- */
+  coushu(){
+    const add = Math.random() < .5;
+    const pile = add ? ri(11,19) : ri(21,28);
+    const ans = add ? 20 - pile : pile - 20;
+    const dummies = shuffle([1,2,3,4,5,6,7,8,9].filter(x => x !== ans)).slice(0,3);
+    const opts = shuffle([ans, ...dummies]);
+    speak(add ? '牌堆是' + pile + '，出几能凑到20？' : '牌堆是' + pile + '，减几能到20？');
+    $('game-body').innerHTML =
+      '<div class="q-title">牌堆现在是 ' + pile + '</div>' +
+      '<div class="q-sub">' + (add ? '出几，加到 20？' : '出几，减到 20？') + ' · 评价手册 P.59</div>' +
+      '<div class="opts">' + opts.map(v => '<button class="opt" data-v="'+v+'">'+v+'</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const v = +btn.dataset.v;
+        if (v === ans) { btn.classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, '凑数：' + pile + (add ? ' + ? = 20（答案是 ' + ans + '）' : ' - ? = 20（答案是 ' + ans + '）')); }
+      };
+    });
+  },
+
+  /* --- 压牌游戏：出更大的牌压过对方 --- */
+  yapai(){
+    const boss = Math.random() < .3;
+    let opts, wrongText, cardsHtml;
+    if (boss) {
+      const n = ri(3,8);
+      opts = shuffle([
+        { t:'👍👍 超级大力士', win:true  },
+        { t:(n+1) + ',' + (n+2),          win:false },
+        { t:(n-1) + ',' + n,              win:false },
+      ]);
+      wrongText = '压牌：对方是大力士2222，只有超级大力士（金拇指+银拇指）能压过';
+      cardsHtml = [2,2,2,2].map(v => '<div class="mcard" style="background:#ce82ff;box-shadow:0 4px 0 #a95fd6">'+v+'<span class="dots"><i></i><i></i></span></div>').join('');
+      speak('对方出了大力士！谁能压过它？');
+    } else {
+      const n = ri(1,7);
+      opts = shuffle([
+        { t:(n+1) + ',' + (n+2), win:true  },
+        { t:(n-1) + ',' + n,     win:false },
+        { t:n + ',' + (n+1),     win:false },
+      ]);
+      wrongText = '压牌：对方出 ' + n + ',' + (n+1) + '，要出更大的连续牌 ' + (n+1) + ',' + (n+2);
+      cardsHtml = [n, n+1].map(v => '<div class="mcard">'+v+'<span class="dots">'+Array.from({length:v},()=>'<i></i>').join('')+'</span></div>').join('');
+      speak('对方出了两张连续牌，出更大的压过它！');
+    }
+    $('game-body').innerHTML =
+      '<div class="q-title">对方出牌：</div>' +
+      '<div class="mrow">' + cardsHtml + '</div>' +
+      '<div class="q-sub">' + (boss ? '大力士 2222！出什么压它？' : '出更大的连续牌压过它！') + ' · 评价手册 P.56</div>' +
+      '<div class="opts">' + opts.map((o,i) => '<button class="opt" data-i="'+i+'">'+o.t+'</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const o = opts[+btn.dataset.i];
+        if (o.win) { btn.classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, wrongText); }
+      };
+    });
+  },
+};
+function clockSVG(h){
+  let marks = '';
+  for (let i = 1; i <= 12; i++) {
+    const a = (i*30 - 90) * Math.PI / 180;
+    const x = 100 + 78*Math.cos(a), y = 100 + 78*Math.sin(a);
+    marks += '<text x="'+x+'" y="'+y+'" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="bold" fill="#8d6e63">'+i+'</text>';
+  }
+  const ha = (h % 12) * 30 * Math.PI / 180;
+  const hx = 100 + 46*Math.sin(ha), hy = 100 - 46*Math.cos(ha);
+  return '<svg viewBox="0 0 200 200" class="clock">' +
+    '<circle cx="100" cy="100" r="95" fill="#fff" stroke="#b08968" stroke-width="7"/>' + marks +
+    '<line x1="100" y1="100" x2="'+hx+'" y2="'+hy+'" stroke="#4b4b4b" stroke-width="9" stroke-linecap="round"/>' +
+    '<line x1="100" y1="100" x2="100" y2="32" stroke="#e53935" stroke-width="4" stroke-linecap="round"/>' +
+    '<circle cx="100" cy="100" r="7" fill="#4b4b4b"/></svg>';
+}
+
+/* ================= 地图 ================= */
+function thumbLevel(){ return S.xp >= 100 ? 'gold' : S.xp >= 50 ? 'silver' : 'none'; }
+function renderMap(){
+  const lv = thumbLevel();
+  $('hdr-thumb').className = 'thumb-badge' + (lv === 'gold' ? ' gold' : lv === 'silver' ? ' silver' : '');
+  $('hdr-xp-fill').style.width = Math.min(100, S.xp) + '%';
+  $('hdr-xp-text').textContent = S.xp >= 100 ? '👍金拇指!' : S.xp + '/100';
+  const wave = [0, -70, 0, 70, 0, -70, 0];
+  const currentId = (NODES.find(n => !n.locked && !(S.stars[n.id] > 0)) || {}).id;
+  $('path').innerHTML = NODES.map((n, i) => {
+    const st = S.stars[n.id] || 0;
+    const cls = n.locked ? 'locked' : n.island + (n.id === currentId ? ' current' : '');
+    const stars = st > 0
+      ? '<div class="node-stars">' + [0,1,2].map(j => '<span style="color:' + (j < st ? '#ffc800' : '#ddd') + '">★</span>').join('') + '</div>'
+      : '';
+    const name = '<div class="node-name">' + n.name + '</div>';
+    const bubble = n.id === currentId ? '<div class="start-bubble">开始</div>' : '';
+    return '<div class="node-wrap" style="transform:translateX(' + wave[i % wave.length] + 'px)">' +
+      bubble +
+      '<button class="node ' + cls + '" data-id="' + n.id + '">' + (n.locked ? '🔒' : n.icon) + '</button>' +
+      stars + name + '</div>';
+  }).join('');
+  document.querySelectorAll('.node').forEach(btn => {
+    btn.onclick = () => {
+      const n = NODES.find(x => x.id === btn.dataset.id);
+      if (n.locked) { SFX.wrong(); toast('先通过前面的关卡哦！'); return; }
+      startGame(n);
+    };
+  });
+}
+
+/* ================= 评价手册 ================= */
+function renderReport(){
+  const lv = thumbLevel();
+  let html =
+    '<div class="rep-card"><div class="rep-h">👍 拇指进度</div>' +
+    '<div class="rep-line">累计经验 ' + S.xp + '　·　' +
+    (lv === 'gold' ? '已获得 <b style="color:#ffc800">金拇指</b>！超级大力士！' :
+     lv === 'silver' ? '已获得 <b>银拇指</b>，再攒 ' + (100 - S.xp) + ' 经验点亮金拇指' :
+     '攒到 50 经验点亮银拇指，100 经验点亮金拇指（还差 ' + (50 - S.xp) + '）') +
+    '</div></div>';
+  html += '<div class="rep-card"><div class="rep-h">⭐ 关卡精通</div>' +
+    NODES.filter(n => !n.locked).map(n => {
+      const st = S.stars[n.id] || 0;
+      return '<div class="rep-line">' + n.icon + ' ' + n.name + '（' + n.page + '）：' +
+        (st > 0 ? [0,1,2].map(j => '<span style="color:' + (j < st ? '#ffc800' : '#ddd') + '">★</span>').join('') : '还没玩') +
+        '</div>';
+    }).join('') + '</div>';
+  const wrongNodes = NODES.filter(n => (S.wrong[n.id] || []).length > 0);
+  html += '<div class="rep-card"><div class="rep-h">✏️ 错题记录与建议</div>' +
+    (wrongNodes.length === 0
+      ? '<div class="rep-line">还没有错题记录，真棒！玩的时候答错会自动记在这里。</div>'
+      : wrongNodes.map(n => {
+          const arr = S.wrong[n.id];
+          return '<div class="rep-line rep-wrong">' + n.icon + ' ' + n.name + '（' + n.page + '）错了 ' + arr.length + ' 次，最近：' + arr[arr.length-1] + '</div>' +
+                 '<div class="rep-line rep-tip">💡 ' + TIPS[n.game] + '</div>';
+        }).join('')) +
+    '</div>';
+  html += '<div class="rep-card"><div class="rep-line" style="text-align:center">' +
+    '<button class="btn gray" id="btn-reset" style="font-size:13px;padding:9px 16px">重置进度</button></div></div>';
+  $('report-body').innerHTML = html;
+  $('btn-reset').onclick = () => {
+    if (confirm('确定清空所有进度和记录吗？')) {
+      S = { stars:{}, xp:0, wrong:{} }; save();
+      renderReport(); renderMap(); toast('已重置');
+    }
+  };
+}
+
+/* ================= 事件 ================= */
+$('btn-report').onclick = () => { SFX.click(); renderReport(); showScreen('report'); };
+$('btn-voice').onclick = () => {
+  VOICE_ON = !VOICE_ON;
+  localStorage.setItem('mathbox_voice', VOICE_ON ? 'on' : 'off');
+  refreshVoiceBtn();
+  SFX.click();
+  if (VOICE_ON) speak('语音朗读，开！');
+  else toast('语音已关闭');
+};
+$('btn-back-map').onclick = () => { SFX.click(); renderMap(); showScreen('map'); };
+$('btn-quit').onclick = () => { SFX.click(); G = null; renderMap(); showScreen('map'); };
+document.addEventListener('touchstart', () => ac(), { once:true });
+document.addEventListener('click', () => ac(), { once:true });
+
+refreshVoiceBtn();
+renderMap();
+</script>
+</body>
+</html>
