@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#58cc02">
-<title>数学游戏盒 · 闯关demo</title>
+<title>数学游戏盒 · 闯关</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; }
@@ -13,13 +13,34 @@
     background:#fdf9f0; color:#4b4b4b;
     display:flex; justify-content:center;
   }
-  #app { width:100%; max-width:480px; min-height:100vh; position:relative; background:#fdf9f0; box-shadow:0 0 24px rgba(0,0,0,.08); }
+  #app { width:100%; max-width:480px; min-height:100vh; position:relative; background:#fdf9f0; box-shadow:0 0 24px rgba(0,0,0,.08); overflow:hidden; }
   .hidden { display:none !important; }
   .screen { min-height:100vh; display:flex; flex-direction:column; }
 
+  /* ---------- 背景装饰（云朵/气球/星星，纯装饰不干扰主题） ---------- */
+  #app::before, #app::after {
+    content:""; position:fixed; left:50%; pointer-events:none; z-index:0;
+    background-repeat:no-repeat; background-size:contain;
+  }
+  #app::before { /* 淡蓝云朵1 */
+    top:6%; width:110px; height:46px; margin-left:-210px;
+    background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 40'><ellipse cx='25' cy='28' rx='20' ry='11' fill='%23dcebff'/><ellipse cx='50' cy='20' rx='24' ry='15' fill='%23dcebff'/><ellipse cx='70' cy='28' rx='18' ry='10' fill='%23dcebff'/></svg>") no-repeat center;
+  }
+  #app::after { /* 淡蓝云朵2 */
+    top:30%; width:80px; height:36px; margin-left:200px; opacity:.7;
+    background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 70 32'><ellipse cx='20' cy='22' rx='16' ry='9' fill='%23dcebff'/><ellipse cx='38' cy='16' rx='19' ry='12' fill='%23dcebff'/><ellipse cx='55' cy='22' rx='14' ry='8' fill='%23dcebff'/></svg>") no-repeat center;
+  }
+  /* 角落里的小气球与星星（低透明度，纯氛围） */
+  .screen::before, .screen::after {
+    content:""; position:absolute; pointer-events:none; z-index:0; opacity:.5; font-size:34px;
+  }
+  .screen::before { content:"🎈"; top:44%; left:6%; transform:rotate(-14deg); }
+  .screen::after { content:"⭐"; top:64%; right:7%; font-size:24px; opacity:.35; }
+  .screen { position:relative; z-index:1; }
+
   /* ---------- 通用按钮（多邻国 3D 按压感） ---------- */
   .btn {
-    border:none; border-radius:14px; font-size:17px; font-weight:800;
+    border:none; border-radius:16px; font-size:17px; font-weight:800;
     padding:13px 22px; cursor:pointer; letter-spacing:1px;
     color:#fff; background:#58cc02; box-shadow:0 4px 0 #46a302;
     transition:transform .06s, box-shadow .06s; font-family:inherit;
@@ -32,26 +53,36 @@
 
   /* ---------- 顶栏 ---------- */
   header {
-    position:sticky; top:0; z-index:10; background:#fff;
+    position:sticky; top:0; z-index:10; background:rgba(255,255,255,.96);
     display:flex; align-items:center; gap:10px;
     padding:12px 16px; box-shadow:0 2px 6px rgba(0,0,0,.06);
   }
-  .thumb-badge { font-size:26px; filter:grayscale(1); opacity:.4; }
-  .thumb-badge.silver { filter:grayscale(.6) sepia(.3); opacity:.9; }
-  .thumb-badge.gold { filter:none; opacity:1; }
+  .thumb-badge {
+    width:42px; height:42px; border-radius:50%; background:#f0f0f0;
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    filter:grayscale(1); opacity:.45; border:2px dashed #d0d0d0;
+  }
+  .thumb-badge.silver { background:#fdf3e3; border-color:#e8c57a; filter:grayscale(.4) sepia(.4); opacity:1; }
+  .thumb-badge.gold { background:#fff3d6; border-color:#ffc800; filter:none; opacity:1; box-shadow:0 0 0 3px rgba(255,200,0,.25); }
   .xp-wrap { flex:1; display:flex; align-items:center; gap:8px; }
-  .xp-bar { flex:1; height:12px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
-  .xp-bar > div { height:100%; width:0%; background:linear-gradient(90deg,#ffc800,#ff9600); border-radius:8px; transition:width .5s; }
+  .xp-bar { flex:1; height:14px; background:#f0e8da; border-radius:9px; overflow:hidden; border:2px solid #eaddc8; }
+  .xp-bar > div { height:100%; width:0%; background:linear-gradient(90deg,#ffc800,#ff9600); border-radius:7px; transition:width .5s; }
   #hdr-xp-text { font-size:12px; font-weight:800; color:#ff9600; white-space:nowrap; }
-  .hdr-btn { border:none; background:#fff; border:2px solid #e5e5e5; border-radius:12px; padding:7px 12px; font-weight:800; color:#1cb0f6; font-size:14px; cursor:pointer; font-family:inherit; }
+  .hdr-btn { border:none; background:#fff; border:2px solid #e5e5e5; border-radius:14px; padding:8px 12px; font-weight:800; color:#1cb0f6; font-size:14px; cursor:pointer; font-family:inherit; }
   .hdr-title { font-size:18px; font-weight:900; color:#4b4b4b; flex:1; text-align:center; }
   #btn-quit, #btn-back-map { border:none; background:none; font-size:20px; color:#afafaf; cursor:pointer; font-weight:900; }
 
   /* ---------- 地图 ---------- */
-  .map-title { text-align:center; padding:18px 0 6px; font-weight:900; font-size:20px; color:#3c3c3c; }
-  .map-sub { text-align:center; font-size:12px; color:#afafaf; margin-bottom:14px; }
-  #path { display:flex; flex-direction:column; align-items:center; gap:28px; padding:56px 0 40px; }
-  .node-wrap { position:relative; }
+  .map-title { text-align:center; padding:18px 0 4px; font-weight:900; font-size:22px; color:#3c3c3c; }
+  .map-sub { text-align:center; font-size:12px; color:#afafaf; margin-bottom:10px; }
+  .map-mascot-wrap { display:flex; justify-content:center; margin:4px 0 6px; }
+  #path { display:flex; flex-direction:column; align-items:center; gap:34px; padding:40px 0 40px; position:relative; }
+  /* 节点间的虚线小径（草地） */
+  #path::before {
+    content:""; position:absolute; top:56px; bottom:56px; left:50%;
+    border-left:3px dashed #d8e9c0; z-index:0;
+  }
+  .node-wrap { position:relative; z-index:1; }
   .node {
     width:78px; height:78px; border-radius:50%; border:none; cursor:pointer;
     font-size:32px; display:flex; align-items:center; justify-content:center;
@@ -68,8 +99,8 @@
     70% { box-shadow:0 6px 0 rgba(0,0,0,.18), 0 0 0 16px rgba(88,204,2,0); }
     100% { box-shadow:0 6px 0 rgba(0,0,0,.18), 0 0 0 0 rgba(88,204,2,0); }
   }
-  .node-stars { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:4px; font-size:13px; letter-spacing:2px; white-space:nowrap; }
-  .node-name { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:22px; font-size:12px; font-weight:800; color:#8a8a8a; white-space:nowrap; }
+  .node-stars { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:4px; font-size:14px; letter-spacing:2px; white-space:nowrap; }
+  .node-name { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:24px; font-size:13px; font-weight:800; color:#7a7a7a; white-space:nowrap; }
   .start-bubble {
     position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%);
     background:#58cc02; color:#fff; font-weight:900; font-size:14px;
@@ -81,12 +112,40 @@
     border:7px solid transparent; border-top-color:#58cc02;
   }
   @keyframes bob { from { margin-bottom:0; } to { margin-bottom:7px; } }
-  footer { text-align:center; font-size:11px; color:#c5c5c5; padding:10px 16px 26px; }
+  footer { text-align:center; font-size:12px; color:#c5c5c5; padding:10px 16px 30px; }
+
+  /* ---------- 小狐狸吉祥物 ---------- */
+  .mascot {
+    display:inline-block; position:relative; width:110px; height:96px;
+    animation:mascot-idle 2.4s ease-in-out infinite;
+  }
+  @keyframes mascot-idle { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-5px) } }
+  .mascot .m-tail { transform-origin:82px 78px; animation:mascot-wag 1.2s ease-in-out infinite; }
+  @keyframes mascot-wag { 0%,100%{ transform:rotate(0deg) } 50%{ transform:rotate(14deg) } }
+  .mascot .m-eye { animation:mascot-blink 3.6s infinite; transform-origin:center; }
+  @keyframes mascot-blink { 0%,90%,100%{ transform:scaleY(1) } 93%,96%{ transform:scaleY(.08) } }
+  .mascot.jump { animation:mascot-jump .6s ease; }
+  @keyframes mascot-jump { 0%{transform:translateY(0)} 40%{transform:translateY(-26px)} 70%{transform:translateY(4px)} 100%{transform:translateY(0)} }
+  /* 说话气泡 */
+  .bubble {
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    background:#fff; border:2px solid #ffe0b0; color:#6b4f2a;
+    font-size:14px; font-weight:800; padding:8px 14px; border-radius:14px;
+    white-space:nowrap; box-shadow:0 3px 8px rgba(0,0,0,.08);
+    animation:bubble-pop .3s ease; z-index:5;
+  }
+  .bubble:after {
+    content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    border:7px solid transparent; border-top-color:#ffe0b0;
+  }
+  @keyframes bubble-pop { from { transform:translateX(-50%) scale(.6); opacity:0; } }
+  /* 地图底部小狐狸 */
+  .mascot-stage { display:flex; justify-content:center; margin-bottom:8px; }
 
   /* ---------- 游戏页 ---------- */
   .game-hdr { display:flex; align-items:center; gap:12px; }
-  .prog { flex:1; height:14px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
-  .prog > div { height:100%; width:0%; background:#58cc02; border-radius:8px; transition:width .4s; }
+  .prog { flex:1; height:14px; background:#f0e8da; border-radius:9px; overflow:hidden; border:2px solid #eaddc8; }
+  .prog > div { height:100%; width:0%; background:#58cc02; border-radius:7px; transition:width .4s; }
   .combo { font-weight:900; color:#ff9600; font-size:15px; white-space:nowrap; }
   #game-body { flex:1; display:flex; flex-direction:column; align-items:center; padding:22px 18px 110px; gap:20px; }
   .q-title { font-size:20px; font-weight:900; color:#3c3c3c; text-align:center; }
@@ -127,13 +186,23 @@
   .mcard.shake { animation:shake .4s; }
   .mrow { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
 
+  /* 找规律：图案序列 */
+  .pat-row { display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; }
+  .pat-cell {
+    width:56px; height:56px; border-radius:14px; background:#fff; border:2px solid #e5e5e5;
+    display:flex; align-items:center; justify-content:center; font-size:30px;
+    box-shadow:0 3px 0 #e0e0e0;
+  }
+  .pat-cell.q { border-style:dashed; border-color:#ffc800; background:#fffbe8; }
+  .pat-cell.q.good { border-style:solid; border-color:#58cc02; background:#f2ffe8; animation:pop .4s; }
+
   .clock { width:210px; height:210px; }
 
   /* ---------- 反馈条 ---------- */
   #feedback {
     position:fixed; bottom:0; left:50%; transform:translateX(-50%);
     width:100%; max-width:480px; padding:16px 20px 26px; z-index:20;
-    font-size:18px; font-weight:900; display:none;
+    font-size:18px; font-weight:900; display:none; border-radius:20px 20px 0 0;
   }
   #feedback.ok { display:block; background:#d7ffb8; color:#58a700; }
   #feedback.no { display:block; background:#ffd9b8; color:#cd7900; }
@@ -152,6 +221,7 @@
   .r-line { font-size:15px; font-weight:800; color:#8a8a8a; }
   .r-xp { font-size:18px; font-weight:900; color:#ff9600; }
   .r-btns { display:flex; gap:12px; justify-content:center; margin-top:6px; }
+  .result-mascot { margin:0 auto -6px; }
 
   /* ---------- 评价手册 ---------- */
   #report-body { padding:18px 16px 40px; display:flex; flex-direction:column; gap:14px; }
@@ -182,7 +252,8 @@
       <button id="btn-report" class="hdr-btn">📔 评价手册</button>
     </header>
     <div class="map-title">数学游戏盒 · 闯关地图</div>
-    <div class="map-sub">改编自朱瑶《幼小衔接数学游戏盒》 · 多邻国式闯关demo</div>
+    <div class="map-sub">改编自朱瑶《幼小衔接数学游戏盒》 · 全部通关解锁隐藏关</div>
+    <div class="map-mascot-wrap" id="map-mascot"></div>
     <div id="path"></div>
     <footer>玩中长智慧 · 玩中共成长</footer>
   </div>
@@ -226,8 +297,8 @@ const NODES = [
   { id:'coushu',  island:'green', icon:'➕', name:'凑数游戏',      page:'P.59', game:'coushu'  },
   { id:'missing', island:'blue',  icon:'🔍', name:'哪张牌不见了',  page:'P.52', game:'missing' },
   { id:'yapai',   island:'green', icon:'🃏', name:'压牌游戏',      page:'P.56', game:'yapai'   },
-  { id:'lock2',   island:'brown', icon:'🐺', name:'老狼几点钟',    page:'P.30', locked:true },
-  { id:'lock3',   island:'blue',  icon:'🧩', name:'接一接·找规律', page:'P.25', locked:true },
+  { id:'laolang', island:'brown', icon:'🐺', name:'老狼几点钟',    page:'P.30', game:'laolang',  need:7  },
+  { id:'guize',   island:'blue',  icon:'🧩', name:'接一接·找规律', page:'P.25', game:'guize',   need:8  },
 ];
 const TIPS = {
   bisize:  '建议和孩子玩实体牌「比大小」，翻牌比数字，大的赢（评价手册 P.15）',
@@ -237,12 +308,30 @@ const TIPS = {
   jielong: '建议和孩子玩实体牌「来接龙」，按数序从小到大或从大到小排（评价手册 P.6/46/47）',
   coushu:  '建议和孩子玩实体牌「凑数游戏」，先凑10再凑20（评价手册 P.59）',
   yapai:   '建议和孩子玩实体牌「压牌游戏」，体验输赢、学会表达情绪（评价手册 P.56/57）',
+  laolang: '建议和孩子玩「老狼老狼几点钟」：老狼报时间，小朋友按时间躲起来（评价手册 P.30）',
+  guize:   '建议和孩子玩「接一接·找规律」：用积木或扑克排出规律，让孩子接下去（评价手册 P.25）',
 };
-const KEY = 'mathbox_demo_v1';
+const KEY = 'mathbox_demo_v2';
 let S = null;
 try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e) {}
+if (!S || typeof S !== 'object') {
+  // 迁移旧版进度（mathbox_demo_v1），保留用户已有通关记录
+  try {
+    const old = JSON.parse(localStorage.getItem('mathbox_demo_v1'));
+    if (old && typeof old === 'object' && old.stars) S = old;
+  } catch(e) {}
+}
 if (!S || typeof S !== 'object') S = { stars:{}, xp:0, wrong:{} };
 function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+
+/* ================= 解锁逻辑（通关解锁，不再写死锁定） ================= */
+function nodeLocked(n){
+  if (!n.need) return false;             // 无 need 字段 → 直接可玩
+  // 解锁条件：它前面的所有关卡（含隐藏关）都通关（有星星）
+  const prev = NODES.slice(0, NODES.indexOf(n));
+  const prevCleared = prev.every(x => (S.stars[x.id] || 0) > 0);
+  return !prevCleared;
+}
 
 /* ================= 音效 ================= */
 let AC = null;
@@ -262,9 +351,9 @@ function tone(f, t0, dur, type, vol){
 }
 const SFX = {
   click:  () => tone(600, 0, .08, 'triangle'),
-  correct:() => { tone(660,0,.12); tone(880,.12,.22); },
+  correct:() => { tone(523,0,.12); tone(659,.1,.12); tone(784,.2,.18); tone(1046,.3,.26); },
   wrong:  () => tone(196, 0, .25, 'square', .12),
-  win:    () => [523,659,784,1047].forEach((f,i)=>tone(f, i*.12, .28)),
+  win:    () => [523,659,784,1047].forEach((f,i)=>tone(f, i*.12, .3)),
 };
 
 /* ================= 语音朗读（孩子识字少，全程语音） ================= */
@@ -274,11 +363,47 @@ function speak(text){
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-CN'; u.rate = .95;
+    u.lang = 'zh-CN'; u.rate = .92;
     speechSynthesis.speak(u);
   } catch(e) {}
 }
 function refreshVoiceBtn(){ $('btn-voice').textContent = VOICE_ON ? '🔊' : '🔇'; }
+
+/* ================= 小狐狸吉祥物 ================= */
+function foxSvg(){
+  return '<svg viewBox="0 0 110 96" width="110" height="96" aria-hidden="true">' +
+    '<path class="m-tail" d="M80 62 Q102 50 96 30 Q88 40 78 46 Z" fill="#f77f00"/>' +
+    '<path d="M30 40 L18 14 L38 26 Z" fill="#f77f00"/>' +
+    '<path d="M80 40 L92 14 L72 26 Z" fill="#f77f00"/>' +
+    '<path d="M26 44 L20 22 L34 30 Z" fill="#ffb35c"/>' +
+    '<path d="M84 44 L90 22 L76 30 Z" fill="#ffb35c"/>' +
+    '<ellipse cx="55" cy="58" rx="38" ry="32" fill="#f77f00"/>' +
+    '<ellipse cx="55" cy="64" rx="26" ry="22" fill="#fff3e6"/>' +
+    '<g class="m-eye"><ellipse cx="42" cy="52" rx="7" ry="8" fill="#fff"/><circle cx="44" cy="53" r="4" fill="#3a2a1c"/><circle cx="46" cy="50" r="1.5" fill="#fff"/></g>' +
+    '<g class="m-eye"><ellipse cx="68" cy="52" rx="7" ry="8" fill="#fff"/><circle cx="70" cy="53" r="4" fill="#3a2a1c"/><circle cx="72" cy="50" r="1.5" fill="#fff"/></g>' +
+    '<ellipse cx="55" cy="64" rx="5" ry="4" fill="#4a2f1a"/>' +
+    '<circle cx="34" cy="63" r="4" fill="#ffb3a0" opacity=".9"/>' +
+    '<circle cx="76" cy="63" r="4" fill="#ffb3a0" opacity=".9"/>' +
+  '</svg>';
+}
+let bubbleTimer = null;
+function mascotSay(el, text, jump){
+  if (!el) return;
+  if (jump) { const m = el.querySelector('.mascot'); if (m) m.classList.remove('jump'); void el.offsetWidth; if (m) m.classList.add('jump'); }
+  const old = el.querySelector('.bubble'); if (old) old.remove();
+  const b = document.createElement('div');
+  b.className = 'bubble'; b.textContent = text;
+  el.appendChild(b);
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(()=>{ const x = el.querySelector('.bubble'); if (x) x.remove(); }, 2600);
+}
+function renderMascot(containerId, greeting){
+  const c = $(containerId);
+  if (!c || c.dataset.done) return;
+  c.dataset.done = '1';
+  c.innerHTML = '<div class="mascot">' + foxSvg() + '</div>';
+  if (greeting) setTimeout(()=>{ mascotSay(c, greeting); speak(greeting); }, 600);
+}
 
 /* ================= 工具 ================= */
 const $ = id => document.getElementById(id);
@@ -348,26 +473,32 @@ function finish(){
   S.xp += xp;
   save();
   SFX.win();
-  const starHtml = '★★★'.slice(0,0) +
-    [0,1,2].map(i => '<span style="color:' + (i < stars ? '#ffc800' : '#e5e5e5') + '">★</span>').join('');
+  const starHtml = [0,1,2].map(i => '<span style="color:' + (i < stars ? '#ffc800' : '#e5e5e5') + '">★</span>').join('');
+  const unlockedNew = n.id === 'laolang' && stars > 0
+    ? '<div class="r-line" style="color:#1cb0f6">🎉 老狼被唤醒！再接一关解锁「接一接·找规律」</div>'
+    : n.id === 'guize' && stars > 0
+      ? '<div class="r-line" style="color:#ce82ff">🎉 全部通关！你是数学小冠军！</div>' : '';
   $('result-body').innerHTML =
+    '<div class="result-mascot"><div class="mascot" style="animation:mascot-jump .6s ease 3">' + foxSvg() + '</div></div>' +
     '<div class="r-title">🎉 过关！</div>' +
     '<div class="r-stars">' + starHtml + '</div>' +
     '<div class="r-line">' + n.icon + ' ' + n.name + ' · 评价手册 ' + n.page + '</div>' +
     '<div class="r-xp">经验 +' + xp + '　·　最高连击 x' + G.maxCombo + '</div>' +
     '<div class="r-line">' + (G.mistakes === 0 ? '零失误，太棒了！' : '失误 ' + G.mistakes + ' 次，再玩一次冲3星吧') + '</div>' +
+    unlockedNew +
     '<div class="r-btns">' +
       '<button class="btn gray" id="btn-replay">再玩一次</button>' +
       '<button class="btn" id="btn-tomap">回地图</button>' +
     '</div>';
   showScreen('result');
+  speak(stars === 3 ? '太棒啦，三颗星！' : '过关啦！');
   $('btn-replay').onclick = () => startGame(n);
   $('btn-tomap').onclick = () => { SFX.click(); renderMap(); showScreen('map'); };
 }
 
-/* ================= 四个关卡 ================= */
+/* ================= 游戏 ================= */
 const GAMES = {
-  /* --- 比大小：点数多的一边赢 --- */
+  /* --- 比大小 --- */
   bisize(){
     const a = ri(1,9); let b = ri(1,9); if (b === a) b = a % 9 + 1;
     const fruit = ['🍎','🍌','🍇','🍓'][ri(0,3)];
@@ -433,6 +564,63 @@ const GAMES = {
     });
   },
 
+  /* --- 老狼几点钟（隐藏关1：老狼报时间） --- */
+  laolang(){
+    const h = ri(1,12);
+    const opts = shuffle([h, ...shuffle([1,2,3,4,5,6,7,8,9,10,11,12].filter(x=>x!==h)).slice(0,3)]);
+    speak('老狼说：我几点出来抓人？');
+    $('game-body').innerHTML =
+      '<div class="q-title">🐺 老狼说：我几点出来抓人？</div>' +
+      '<div class="q-sub">看钟面 · 老狼老狼几点钟 · 评价手册 P.30</div>' +
+      clockSVG(h) +
+      '<div class="opts">' + opts.map(v => '<button class="opt" data-v="'+v+'">'+v+' 点</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const v = +btn.dataset.v;
+        if (v === h) { btn.classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, '老狼几点钟：钟面是 ' + h + ' 点'); }
+      };
+    });
+  },
+
+  /* --- 接一接·找规律（隐藏关2：图案/数字规律） --- */
+  guize(){
+    const mode = Math.random() < .5 ? 'emoji' : 'num';
+    let seq, answer, opts;
+    if (mode === 'emoji') {
+      // 图案规律：ABAB / AABB / ABCABC，选项也用图案（不混数字）
+      const sets = [
+        { seq:['🍎','🍌'], rep:2 }, { seq:['🐱','🐶'], rep:2 }, { seq:['⭐','🌙','☀️'], rep:2 },
+      ];
+      const s = sets[ri(0, sets.length-1)];
+      seq = Array.from({length:4}, (_,i)=>s.seq[i % s.seq.length]);
+      answer = s.seq[4 % s.seq.length];
+      const pool = ['🍎','🍌','🐱','🐶','⭐','🌙','☀️','🚗','🌸','🐟'].filter(x => x !== answer);
+      opts = shuffle([answer, ...shuffle(pool).slice(0,3)]);
+    } else {
+      // 数字规律：+2 / +3 / -1，选项是数字
+      const step = [2,3,1][ri(0,2)];
+      const start = ri(step === 1 ? 5 : 1, 15);
+      seq = [start, start+step, start+step*2, start+step*3];
+      answer = start + step*4;
+      const dummies = shuffle([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].filter(x => x !== answer)).slice(0,3);
+      opts = shuffle([answer, ...dummies]);
+    }
+    speak(mode === 'emoji' ? '找规律：下一个是什么？' : '找规律：下一个数字是几？');
+    $('game-body').innerHTML =
+      '<div class="q-title">接一接·找规律</div>' +
+      '<div class="q-sub">' + (mode === 'emoji' ? '看看图案怎么排队，接下去！' : '看看数字怎么变化，接下去！') + ' · 评价手册 P.25</div>' +
+      '<div class="pat-row">' + seq.map(v => '<div class="pat-cell">'+v+'</div>').join('') + '<div class="pat-cell q">❓</div></div>' +
+      '<div class="opts">' + opts.map(v => '<button class="opt" data-v="'+v+'">'+v+'</button>').join('') + '</div>';
+    document.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = () => {
+        const v = btn.dataset.v;
+        if (v === String(answer)) { btn.classList.add('good'); document.querySelector('.pat-cell.q').classList.add('good'); onAnswer(true); }
+        else { btn.classList.add('dead'); onAnswer(false, '找规律：' + seq.join(',') + '，下一个是 ' + answer); }
+      };
+    });
+  },
+
   /* --- 哪张牌不见了 --- */
   missing(){
     const start = ri(1,15);
@@ -465,7 +653,7 @@ const GAMES = {
       });
     };
   },
-  /* --- 数字接龙：按方向依次点牌 --- */
+  /* --- 数字接龙 --- */
   jielong(){
     const s = ri(1,16);
     const seq = [s, s+1, s+2, s+3];
@@ -495,7 +683,7 @@ const GAMES = {
     });
   },
 
-  /* --- 凑数游戏：加到20 / 减到20 --- */
+  /* --- 凑数游戏 --- */
   coushu(){
     const add = Math.random() < .5;
     const pile = add ? ri(11,19) : ri(21,28);
@@ -516,7 +704,7 @@ const GAMES = {
     });
   },
 
-  /* --- 压牌游戏：出更大的牌压过对方 --- */
+  /* --- 压牌游戏 --- */
   yapai(){
     const boss = Math.random() < .3;
     let opts, wrongText, cardsHtml;
@@ -578,11 +766,12 @@ function renderMap(){
   $('hdr-thumb').className = 'thumb-badge' + (lv === 'gold' ? ' gold' : lv === 'silver' ? ' silver' : '');
   $('hdr-xp-fill').style.width = Math.min(100, S.xp) + '%';
   $('hdr-xp-text').textContent = S.xp >= 100 ? '👍金拇指!' : S.xp + '/100';
-  const wave = [0, -70, 0, 70, 0, -70, 0];
-  const currentId = (NODES.find(n => !n.locked && !(S.stars[n.id] > 0)) || {}).id;
+  const wave = [0, -70, 0, 70, 0, -70, 0, 70, 0];
+  const currentId = (NODES.find(n => !nodeLocked(n) && !(S.stars[n.id] > 0)) || {}).id;
   $('path').innerHTML = NODES.map((n, i) => {
     const st = S.stars[n.id] || 0;
-    const cls = n.locked ? 'locked' : n.island + (n.id === currentId ? ' current' : '');
+    const locked = nodeLocked(n);
+    const cls = locked ? 'locked' : n.island + (n.id === currentId ? ' current' : '');
     const stars = st > 0
       ? '<div class="node-stars">' + [0,1,2].map(j => '<span style="color:' + (j < st ? '#ffc800' : '#ddd') + '">★</span>').join('') + '</div>'
       : '';
@@ -590,16 +779,25 @@ function renderMap(){
     const bubble = n.id === currentId ? '<div class="start-bubble">开始</div>' : '';
     return '<div class="node-wrap" style="transform:translateX(' + wave[i % wave.length] + 'px)">' +
       bubble +
-      '<button class="node ' + cls + '" data-id="' + n.id + '">' + (n.locked ? '🔒' : n.icon) + '</button>' +
+      '<button class="node ' + cls + '" data-id="' + n.id + '">' + (locked ? '🔒' : n.icon) + '</button>' +
       stars + name + '</div>';
   }).join('');
   document.querySelectorAll('.node').forEach(btn => {
     btn.onclick = () => {
       const n = NODES.find(x => x.id === btn.dataset.id);
-      if (n.locked) { SFX.wrong(); toast('先通过前面的关卡哦！'); return; }
+      if (nodeLocked(n)) { SFX.wrong(); toast('先通过前面的关卡哦！'); return; }
       startGame(n);
     };
   });
+  // 小狐狸在地图右下打招呼
+  const mc = $('map-mascot');
+  if (!mc.dataset.done) {
+    renderMascot('map-mascot', '欢迎来到数学游戏盒！先玩比大小吧！');
+  } else {
+    // 已有 → 根据进度换一句鼓励
+    const cleared = NODES.filter(n => !nodeLocked(n) && (S.stars[n.id]||0) > 0).length;
+    if (cleared === 9 && !mc.dataset.greet9) { mc.dataset.greet9='1'; mascotSay(mc, '全部通关啦！你是数学小冠军！🏆'); speak('全部通关啦！你是数学小冠军！'); }
+  }
 }
 
 /* ================= 评价手册 ================= */
@@ -613,10 +811,12 @@ function renderReport(){
      '攒到 50 经验点亮银拇指，100 经验点亮金拇指（还差 ' + (50 - S.xp) + '）') +
     '</div></div>';
   html += '<div class="rep-card"><div class="rep-h">⭐ 关卡精通</div>' +
-    NODES.filter(n => !n.locked).map(n => {
+    NODES.map(n => {
       const st = S.stars[n.id] || 0;
+      const lock = nodeLocked(n);
       return '<div class="rep-line">' + n.icon + ' ' + n.name + '（' + n.page + '）：' +
-        (st > 0 ? [0,1,2].map(j => '<span style="color:' + (j < st ? '#ffc800' : '#ddd') + '">★</span>').join('') : '还没玩') +
+        (lock ? '<span style="color:#bbb">🔒 未解锁</span>' :
+         st > 0 ? [0,1,2].map(j => '<span style="color:' + (j < st ? '#ffc800' : '#ddd') + '">★</span>').join('') : '还没玩') +
         '</div>';
     }).join('') + '</div>';
   const wrongNodes = NODES.filter(n => (S.wrong[n.id] || []).length > 0);
